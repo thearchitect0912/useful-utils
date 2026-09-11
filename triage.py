@@ -14,8 +14,35 @@ import os
 import re
 import sys
 
-args = [a for a in sys.argv[1:] if not a.startswith("--")]
 keep_domains = "--keep-domains" in sys.argv
+
+# --mask @file (one word per line) or --mask word1,word2 - blanked everywhere,
+# case-insensitive. Use a file so the words stay out of shell/auditd cmdlines.
+args = []
+MASKS = []
+i = 1
+while i < len(sys.argv):
+    a = sys.argv[i]
+    if a == "--mask" and i + 1 < len(sys.argv):
+        v = sys.argv[i + 1]
+        if v.startswith("@"):
+            MASKS = [w.strip() for w in open(v[1:], encoding="utf-8") if w.strip()]
+        else:
+            MASKS = [w.strip() for w in v.split(",") if w.strip()]
+        i += 2
+        continue
+    if not a.startswith("--"):
+        args.append(a)
+    i += 1
+
+
+def emit(*args):
+    s = " ".join(str(a) for a in args)
+    for w in MASKS:
+        s = re.sub(re.escape(w), "[X]", s, flags=re.I)
+    print(s)
+
+
 if not args:
     sys.exit(__doc__)
 
@@ -48,36 +75,36 @@ def triage_sweep(path, lines):
         elif l.startswith("[SP-ERR]"):
             errs.append(l[:160])
 
-    print("== sweep-sp triage:", os.path.basename(path))
-    print("files-with-content-hits=%d  sp-hits=%d  sp-docs=%d  errors=%d"
+    emit("== sweep-sp triage:", os.path.basename(path))
+    emit("files-with-content-hits=%d  sp-hits=%d  sp-docs=%d  errors=%d"
           % (len(content), len(sphit), len(spdoc), len(errs)))
 
-    print("\n-- content hits (ranked by distinct needles) --")
+    emit("\n-- content hits (ranked by distinct needles) --")
     for url, needles in sorted(content.items(), key=lambda kv: -len(kv[1])):
-        print("%3d needles  %s  [%s]" % (len(needles), url, ", ".join(sorted(needles))))
+        emit("%3d needles  %s  [%s]" % (len(needles), url, ", ".join(sorted(needles))))
 
-    print("\n-- secret-lane files (not downloaded / oversized) --")
+    emit("\n-- secret-lane files (not downloaded / oversized) --")
     for name, size, query, url in sphit:
-        print("%10d B  %-40s query=%s" % (size, name[:40], query))
+        emit("%10d B  %-40s query=%s" % (size, name[:40], query))
 
-    print("\n-- discovery docs (backup/warehouse) --")
+    emit("\n-- discovery docs (backup/warehouse) --")
     for name, size, query, url in spdoc:
-        print("%10d B  %-50s query=%s" % (size, name[:50], query))
+        emit("%10d B  %-50s query=%s" % (size, name[:50], query))
 
     if errs:
-        print("\n-- errors --")
+        emit("\n-- errors --")
         for e in errs[:10]:
-            print(e)
+            emit(e)
 
 
 def triage_enum(path, lines):
-    print("== enum-entra triage:", os.path.basename(path))
+    emit("== enum-entra triage:", os.path.basename(path))
     for l in lines:
         # status lines and display names only; drop anything that looks token-y
         if re.search(r"eyJ[A-Za-z0-9_-]{10,}", l):
-            print("[redacted line - looked like a token]")
+            emit("[redacted line - looked like a token]")
         else:
-            print(l)
+            emit(l)
 
 
 for path in args:
