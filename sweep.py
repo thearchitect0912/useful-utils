@@ -142,6 +142,14 @@ def report(out, kind, label, detail=None):
         line += " | " + detail
     out.write(line + "\n")
     out.flush()
+    vlog(line)
+
+
+def vlog(msg):
+    # console progress; pythonw.exe has no stderr, so guard
+    if sys.stderr:
+        sys.stderr.write("# %s\n" % msg)
+        sys.stderr.flush()
 
 
 def scan_bytes(out, label, lowername, raw):
@@ -297,13 +305,17 @@ def sp_run(out, token):
     seen = set()
     downloads = 0
     lanes = ((SP_SECRET_QUERIES, True), (SP_DISCOVERY_QUERIES, False))
+    total_queries = len(SP_SECRET_QUERIES) + len(SP_DISCOVERY_QUERIES)
     first = True
     for queries, allow_download in lanes:
         for query in queries:
             if not first:
-                time.sleep(random.uniform(*SP_DELAY_S))
+                pause = random.uniform(*SP_DELAY_S)
+                vlog("pause %.0fs" % pause)
+                time.sleep(pause)
             first = False
             counters["sp_queries"] += 1
+            vlog("query %d/%d: %s" % (counters["sp_queries"], total_queries, query))
             try:
                 frm = 0
                 for page in range(SP_PAGES_PER_QUERY):
