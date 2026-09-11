@@ -301,11 +301,12 @@ def sp_download(token, drive_id, item_id):
     return sp_call(token, url)
 
 
-def sp_run(out, token):
+def sp_run(out, token, lanes=None):
+    if lanes is None:
+        lanes = ((SP_SECRET_QUERIES, True), (SP_DISCOVERY_QUERIES, False))
+    total_queries = sum(len(qs) for qs, _ in lanes)
     seen = set()
     downloads = 0
-    lanes = ((SP_SECRET_QUERIES, True), (SP_DISCOVERY_QUERIES, False))
-    total_queries = len(SP_SECRET_QUERIES) + len(SP_DISCOVERY_QUERIES)
     first = True
     for queries, allow_download in lanes:
         for query in queries:
@@ -362,6 +363,26 @@ def sp_run(out, token):
                 report(out, "SP-ERR", "query=%r" % query, "%s" % exc)
 
 
+def load_lanes(path):
+    """Queries file, one per line: 'S <query>' (secrets lane: download+scan)
+    or 'D <query>' (discovery lane: list only). '#' lines are comments."""
+    secret, disc = [], []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            tag, _, q = line.partition(" ")
+            q = q.strip()
+            if not q:
+                continue
+            if tag.upper() == "S":
+                secret.append(q)
+            elif tag.upper() == "D":
+                disc.append(q)
+    return ((tuple(secret), True), (tuple(disc), False))
+
+
 # ---- entry ------------------------------------------------------------
 
 
@@ -372,15 +393,16 @@ def main():
 
     if args and args[0] == "--sp":
         if len(args) < 2:
-            sys.stderr.write("usage: sweep.py --sp <tokenfile> [outfile]\n")
+            sys.stderr.write("usage: sweep.py --sp <tokenfile> [outfile] [queriesfile]\n")
             return 2
         with open(args[1], "r", encoding="ascii", errors="ignore") as fh:
             token = fh.read().strip()
         outpath = args[2] if len(args) > 2 else os.path.join(script_dir, "sweep-sp-%s.txt" % ts)
+        lanes = load_lanes(args[3]) if len(args) > 3 else None
         with open(outpath, "w", encoding="utf-8", errors="replace") as out:
             out.write("# sweep SP mode start | host=%s user=%s\n"
                       % (os.environ.get("COMPUTERNAME", "?"), os.environ.get("USERNAME", "?")))
-            sp_run(out, token)
+            sp_run(out, token, lanes)
             out.write("# complete | queries=%(sp_queries)d hits=%(sp_hits)d "
                       "downloads=%(sp_downloads)d content_hits=%(content)d\n" % counters)
         return 0

@@ -1,0 +1,11 @@
+# sweep round 2 - only queries NOT already run in the 15:55 pass.
+# Round-1 strings are preserved (no duplicate SearchQueryPerformed entries).
+# Fixes underscore-tokenized queries; adds the two free-text heavy hitters.
+S "client secret"
+S "client id"
+S "refresh token"
+S "api key"
+S "private key"
+S AccountKey
+S password
+S credentials
