@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""triage.py - paste-safe summarizer for sweep.py --sp output and enum-entra summaries.
+
+Never prints secret values: everything after '::' (the snippet) is dropped,
+hosts are redacted by default, and hits are ranked so the gold floats to the top.
+
+Usage:
+  python3 triage.py sweep-sp-20260911-155500.txt
+  python3 triage.py ~/enum-entra-*/_summary.txt
+  python3 triage.py file.txt --keep-domains     # only if you want full URLs
+"""
+import collections
+import os
+import re
+import sys
+
+args = [a for a in sys.argv[1:] if not a.startswith("--")]
+keep_domains = "--keep-domains" in sys.argv
+if not args:
+    sys.exit(__doc__)
+
+
+def redact_url(u):
+    if keep_domains:
+        return u
+    m = re.match(r"https://([^/]+)(/.*)?", u)
+    if not m:
+        return "[url]"
+    return "[host]" + (m.group(2) or "")
+
+
+def triage_sweep(path, lines):
+    content = collections.defaultdict(set)
+    sphit, spdoc, errs = [], [], []
+    for l in lines:
+        if l.startswith("[CONTENT]"):
+            m = re.match(r"\[CONTENT\] (\S+) \| (?:needle|pattern)=(\S+)", l)
+            if m:
+                content[redact_url(m.group(1))].add(m.group(2))
+        elif l.startswith("[SP-HIT]"):
+            m = re.match(r"\[SP-HIT\] (\S+) \| query=(.+?) name=(.+?) size=(\d+) modified=(\S+)", l)
+            if m:
+                sphit.append((m.group(3), int(m.group(4)), m.group(2), redact_url(m.group(1))))
+        elif l.startswith("[SP-DOC]"):
+            m = re.match(r"\[SP-DOC\] (\S+) \| query=(.+?) name=(.+?) size=(\d+) modified=(\S+)", l)
+            if m:
+                spdoc.append((m.group(3), int(m.group(4)), m.group(2), redact_url(m.group(1))))
+        elif l.startswith("[SP-ERR]"):
+            errs.append(l[:160])
+
+    print("== sweep-sp triage:", os.path.basename(path))
+    print("files-with-content-hits=%d  sp-hits=%d  sp-docs=%d  errors=%d"
+          % (len(content), len(sphit), len(spdoc), len(errs)))
+
+    print("\n-- content hits (ranked by distinct needles) --")
+    for url, needles in sorted(content.items(), key=lambda kv: -len(kv[1])):
+        print("%3d needles  %s  [%s]" % (len(needles), url, ", ".join(sorted(needles))))
+
+    print("\n-- secret-lane files (not downloaded / oversized) --")
+    for name, size, query, url in sphit:
+        print("%10d B  %-40s query=%s" % (size, name[:40], query))
+
+    print("\n-- discovery docs (backup/warehouse) --")
+    for name, size, query, url in spdoc:
+        print("%10d B  %-50s query=%s" % (size, name[:50], query))
+
+    if errs:
+        print("\n-- errors --")
+        for e in errs[:10]:
+            print(e)
+
+
+def triage_enum(path, lines):
+    print("== enum-entra triage:", os.path.basename(path))
+    for l in lines:
+        # status lines and display names only; drop anything that looks token-y
+        if re.search(r"eyJ[A-Za-z0-9_-]{10,}", l):
+            print("[redacted line - looked like a token]")
+        else:
+            print(l)
+
+
+for path in args:
+    lines = open(path, encoding="utf-8", errors="replace").read().splitlines()
+    if any(l.startswith("[SP-") or l.startswith("[CONTENT]") for l in lines):
+        triage_sweep(path, lines)
+    else:
+        triage_enum(path, lines)
