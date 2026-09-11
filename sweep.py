@@ -52,6 +52,7 @@ NAME_NEEDLES = (
     ".ovpn", ".ppk", "known_hosts", "filezilla", "mremote", "keepass",
     ".aws", ".kube", ".docker", "vault", "kubeconfig", "backup",
     "commvault", "veeam", "runbook", "recovery", "disaster", "dr-plan",
+    "warehouse", "snowflake", "databricks", "synapse",
 )
 
 NAME_EXTS = (".pfx", ".p12", ".key", ".pem", ".rdp", ".env")
@@ -95,12 +96,14 @@ SP_SECRET_QUERIES = (
     '"DefaultEndpointsProtocol"', '"SharedAccessSignature"',
     '"BEGIN OPENSSH PRIVATE KEY"', '"BEGIN RSA PRIVATE KEY"',
     '"hooks.slack.com"', '"refresh_token"', '"api_key"',
+    '"access key"', '"sas token"',
     'password filetype:txt', 'password filetype:xlsx', 'secret filetype:json',
     "postman", "pfx",
 )
 SP_DISCOVERY_QUERIES = (
-    "commvault", "veeam", "backup runbook", "disaster recovery",
-    "recovery vault", "backup admin",
+    "commvault", "veeam", '"backup infrastructure"', '"backup runbook"',
+    '"disaster recovery"', '"recovery vault"', '"backup admin"',
+    '"data warehouse"', "synapse", "snowflake", "databricks", '"data lake"',
 )
 SP_DELAY_S = (15.0, 45.0)        # between queries
 SP_PAGE_DELAY_S = (5.0, 10.0)    # between pages of one query
