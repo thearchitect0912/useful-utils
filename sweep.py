@@ -92,17 +92,17 @@ RE_AKIA = re.compile(rb"\bAKIA[A-Z0-9]{16}\b")
 #  - discovery: backup-infra docs we WANT to read by hand; listed only,
 #    never downloaded (does not eat the download budget)
 SP_SECRET_QUERIES = (
-    '"client_secret"', '"connection string"', '"AccountKey="',
-    '"DefaultEndpointsProtocol"', '"SharedAccessSignature"',
-    '"BEGIN OPENSSH PRIVATE KEY"', '"BEGIN RSA PRIVATE KEY"',
-    '"hooks.slack.com"', '"refresh_token"', '"api_key"',
-    '"access key"', '"sas token"',
-    'password filetype:txt', 'password filetype:xlsx', 'secret filetype:json',
-    "postman", "pfx",
+    # NOTE: SharePoint tokenizes on underscores/punctuation - phrase queries
+    # must use spaces ("client secret" matches "client_secret" in content).
+    # filetype:/extension: KQL is unreliable via Graph driveItem search - avoid.
+    '"client secret"', '"client id"', '"refresh token"', '"api key"',
+    '"access key"', '"sas token"', '"connection string"', '"private key"',
+    "AccountKey", "DefaultEndpointsProtocol", "SharedAccessSignature",
+    "password", "credentials", "postman", "pfx",
 )
 SP_DISCOVERY_QUERIES = (
-    "commvault", "veeam", '"backup infrastructure"', '"backup runbook"',
-    '"disaster recovery"', '"recovery vault"', '"backup admin"',
+    "commvault", "veeam", '"backup runbook"', '"disaster recovery"',
+    '"backup infrastructure"', '"recovery vault"', '"backup admin"',
     '"data warehouse"', "synapse", "snowflake", "databricks", '"data lake"',
 )
 SP_DELAY_S = (15.0, 45.0)        # between queries
